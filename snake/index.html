@@ -1,0 +1,209 @@
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Snake</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1e1f24;
+    color: #e8e8e8;
+    font-family: system-ui, sans-serif;
+  }
+  #score { font-size: 20px; margin-bottom: 8px; }
+  canvas { background: #111214; border: 2px solid #3a3c44; }
+  #help { margin-top: 8px; font-size: 14px; color: #9a9ca4; }
+</style>
+</head>
+<body>
+<div id="score">Score: 0</div>
+<canvas id="board" width="400" height="400"></canvas>
+<div id="help">Press an arrow key to start &middot; eaten food leaves a rock &middot; R or Space to restart</div>
+
+<script>
+// ---------- Game logic (no DOM access, pure functions) ----------
+
+const DIRECTIONS = {
+  up:    { x: 0,  y: -1 },
+  down:  { x: 0,  y: 1 },
+  left:  { x: -1, y: 0 },
+  right: { x: 1,  y: 0 },
+};
+
+function createGame(cols, rows, random = Math.random) {
+  const midX = Math.floor(cols / 2);
+  const midY = Math.floor(rows / 2);
+  const snake = [
+    { x: midX,     y: midY },
+    { x: midX - 1, y: midY },
+    { x: midX - 2, y: midY },
+  ];
+  return {
+    cols,
+    rows,
+    snake,
+    direction: DIRECTIONS.right,
+    nextDirection: DIRECTIONS.right,
+    food: placeFood(snake, cols, rows, random),
+    rocks: [], // breadcrumb walls: one rock is left wherever food was eaten
+    score: 0,
+    gameOver: false,
+  };
+}
+
+// Pick a random cell not covered by any of the occupied cells (snake and rocks).
+function placeFood(occupied, cols, rows, random = Math.random) {
+  const free = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (!occupied.some(s => s.x === x && s.y === y)) free.push({ x, y });
+    }
+  }
+  if (free.length === 0) return null;
+  return free[Math.floor(random() * free.length)];
+}
+
+function isOpposite(a, b) {
+  return a.x === -b.x && a.y === -b.y;
+}
+
+// Queue a turn for the next step; reversing straight into yourself is ignored.
+function changeDirection(state, name) {
+  const dir = DIRECTIONS[name];
+  if (!dir || state.gameOver || isOpposite(dir, state.direction)) return state;
+  return { ...state, nextDirection: dir };
+}
+
+function nextHead(state) {
+  const head = state.snake[0];
+  return { x: head.x + state.nextDirection.x, y: head.y + state.nextDirection.y };
+}
+
+function hitsWall(pos, cols, rows) {
+  return pos.x < 0 || pos.y < 0 || pos.x >= cols || pos.y >= rows;
+}
+
+function hitsSelf(pos, snake) {
+  return snake.some(s => s.x === pos.x && s.y === pos.y);
+}
+
+function hitsRock(pos, rocks) {
+  return rocks.some(r => r.x === pos.x && r.y === pos.y);
+}
+
+// Advance the game by one tick and return the new state.
+function step(state, random = Math.random) {
+  if (state.gameOver) return state;
+
+  const head = nextHead(state);
+  const eats = state.food !== null && head.x === state.food.x && head.y === state.food.y;
+  // The tail moves away this tick unless the snake grows, so it is not an obstacle.
+  const body = eats ? state.snake : state.snake.slice(0, -1);
+
+  if (hitsWall(head, state.cols, state.rows) || hitsSelf(head, body) || hitsRock(head, state.rocks)) {
+    return { ...state, direction: state.nextDirection, gameOver: true };
+  }
+
+  const snake = [head, ...body];
+  // The rock appears under the head; the body slides over it, only a head entering it later crashes.
+  const rocks = eats ? [...state.rocks, { x: head.x, y: head.y }] : state.rocks;
+  const food = eats ? placeFood([...snake, ...rocks], state.cols, state.rows, random) : state.food;
+  return {
+    ...state,
+    snake,
+    rocks,
+    direction: state.nextDirection,
+    food,
+    score: eats ? state.score + 1 : state.score,
+    gameOver: food === null, // no free cell left for food
+  };
+}
+
+// ---------- Drawing (reads state, never changes it) ----------
+
+const CELL = 20;
+
+function draw(ctx, state) {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  // Rocks first, so the snake's body is drawn on top while it slides over a fresh one.
+  ctx.fillStyle = "#6e7079";
+  state.rocks.forEach(r => {
+    ctx.fillRect(r.x * CELL + 2, r.y * CELL + 2, CELL - 4, CELL - 4);
+  });
+
+  if (state.food) {
+    ctx.fillStyle = "#e5484d";
+    ctx.beginPath();
+    ctx.arc((state.food.x + 0.5) * CELL, (state.food.y + 0.5) * CELL, CELL * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  state.snake.forEach((s, i) => {
+    ctx.fillStyle = i === 0 ? "#7ee787" : "#3fb950";
+    ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+  });
+
+  if (state.gameOver) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 32px system-ui, sans-serif";
+    ctx.fillText("Game over", ctx.canvas.width / 2, ctx.canvas.height / 2 - 10);
+    ctx.font = "16px system-ui, sans-serif";
+    ctx.fillText("Press R or Space to restart", ctx.canvas.width / 2, ctx.canvas.height / 2 + 20);
+  }
+}
+
+function drawScore(el, state) {
+  el.textContent = "Score: " + state.score;
+}
+
+// ---------- Wiring: input, timer, rendering ----------
+
+const KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
+const TICK_MS = 120;
+
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+let game = createGame(canvas.width / CELL, canvas.height / CELL);
+let started = false; // the snake waits for the first arrow key
+
+function render() {
+  draw(ctx, game);
+  drawScore(scoreEl, game);
+}
+
+document.addEventListener("keydown", e => {
+  if (KEYS[e.key]) {
+    e.preventDefault();
+    game = changeDirection(game, KEYS[e.key]);
+    started = true;
+  } else if (e.key === "r" || e.key === "R" || e.key === " ") {
+    e.preventDefault();
+    game = createGame(game.cols, game.rows);
+    started = false;
+    render();
+  }
+});
+
+setInterval(() => {
+  if (!started || game.gameOver) return;
+  game = step(game);
+  render();
+}, TICK_MS);
+
+render();
+
+// Expose the logic so it can be tested from the console or a test page.
+window.SnakeLogic = { DIRECTIONS, createGame, placeFood, changeDirection, step, hitsWall, hitsSelf, hitsRock };
+</script>
+</body>
+</html>
