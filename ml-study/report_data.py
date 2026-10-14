@@ -1,6 +1,6 @@
 """Facts and tables for report.html and slides.qmd, read only from saved files (no retyped numbers).
 
-Sources: data/leaves.csv, ml-study/results/*.csv, ml-study/figures/scatter.png.
+Sources: data/leaves.csv, ml-study/results/*.csv (including test_ci.csv), ml-study/figures/scatter.png.
 """
 import ast
 import base64
@@ -32,6 +32,7 @@ def load_all():
     test = pd.read_csv(RESULTS / "test_score.csv", index_col="model")
     conf = pd.read_csv(RESULTS / "test_confusion.csv", index_col=0)
     pred = pd.read_csv(RESULTS / "test_predictions.csv")
+    ci = pd.read_csv(RESULTS / "test_ci.csv", index_col="metric")
 
     chosen = cv.index[cv["chosen"] == "yes"][0]
     best = cv["cv_mean"].max()
@@ -70,6 +71,8 @@ def load_all():
         "test_acc": test.loc[chosen, "test_accuracy"],
         "test_f1": test.loc[chosen, "test_macro_f1"],
         "gap": test.loc[chosen, "test_minus_cv"],
+        "ci": ci, "n_boot": int(ci["resamples"].iloc[0]),
+        "ci_ba": (ci.loc["balanced_accuracy", "ci_low"], ci.loc["balanced_accuracy", "ci_high"]),
         "n_wrong": int((~pred["correct"]).sum()),
         "recall": recall,
         "weakest": recall.idxmin(),
@@ -103,10 +106,19 @@ def test_table(d):
         "Model": t.index,
         "CV balanced accuracy": [f"{f3(m)} ± {f3(s)}" for m, s in zip(t["cv_mean"], t["cv_std"])],
         "Test balanced accuracy": [f3(v) for v in t["test_balanced_accuracy"]],
+        "95 % CI": [ci_text(d, m) for m in t.index],
         "Test accuracy": [f3(v) for v in t["test_accuracy"]],
         "Test macro F1": [f3(v) for v in t["test_macro_f1"]],
         "Test − CV": [f"{v:+.3f}" for v in t["test_minus_cv"]],
     })
+
+
+def ci_text(d, model):
+    """Bootstrap interval of the test balanced accuracy; only computed for the chosen model."""
+    if model != d["chosen"]:
+        return "–"
+    low, high = d["ci_ba"]
+    return f"{f3(low)}–{f3(high)}"
 
 
 def confusion_table(d):

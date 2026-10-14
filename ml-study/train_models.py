@@ -7,6 +7,8 @@ Run from the repository root:
                                                      # every grid point saved to ml-study/results/, test set untouched
     uv run python ml-study/train_models.py --final   # the single test-set evaluation of the chosen model
                                                      # (refuses to run again once test_score.csv exists)
+    uv run python ml-study/train_models.py --ci      # bootstrap confidence intervals of the test scores,
+                                                     # from the saved test predictions only (no refit, no predict)
 The CSV is only read, never modified.
 """
 import argparse
@@ -273,18 +275,64 @@ def run_final(force=False):
     print(f"\nSaved {TEST_SCORE}, {RESULTS / 'test_predictions.csv'}, {RESULTS / 'test_confusion.csv'}")
 
 
+TEST_CI = RESULTS / "test_ci.csv"
+N_BOOT = 10_000
+
+
+def run_ci():
+    """95 % percentile-bootstrap intervals of the chosen model's test scores, read from test_predictions.csv.
+
+    Resamples are drawn within each true class, so every resample has the class counts of the test set.
+    """
+    pred = pd.read_csv(RESULTS / "test_predictions.csv")
+    scores = pd.read_csv(TEST_SCORE, index_col="model")
+    chosen = scores.index[scores.index != "baseline"][0]
+    metrics = {"balanced_accuracy": balanced_accuracy_score, "accuracy": accuracy_score,
+               "macro_f1": lambda t, p: f1_score(t, p, average="macro")}
+
+    rng = np.random.default_rng(SEED)
+    groups = [np.flatnonzero(pred["true"] == c) for c in CLASSES]
+    true, predicted = pred["true"].to_numpy(), pred["predicted"].to_numpy()
+    boot = {name: [] for name in metrics}
+    for _ in range(N_BOOT):
+        i = np.concatenate([rng.choice(g, len(g)) for g in groups])
+        for name, fn in metrics.items():
+            boot[name].append(fn(true[i], predicted[i]))
+
+    rows = []
+    for name, fn in metrics.items():
+        score = fn(true, predicted)
+        assert np.isclose(score, scores.loc[chosen, f"test_{name}"]), name  # same predictions as --final
+        low, high = np.percentile(boot[name], [2.5, 97.5])
+        rows.append({"model": chosen, "metric": name, "score": score, "ci_low": low, "ci_high": high,
+                     "bootstrap_se": np.std(boot[name]), "resamples": N_BOOT})
+    ci = pd.DataFrame(rows)
+    ci.to_csv(TEST_CI, index=False)
+
+    cv_mean = scores.loc[chosen, "cv_mean"]
+    print(f"Test scores of {chosen} with 95 % bootstrap intervals ({N_BOOT} stratified resamples, seed {SEED}):")
+    print(ci.set_index("metric")[["score", "ci_low", "ci_high", "bootstrap_se"]]
+          .to_string(float_format="{:.3f}".format))
+    print(f"\nShare of resamples with balanced accuracy >= the CV mean ({cv_mean:.3f}): "
+          f"{np.mean(np.array(boot['balanced_accuracy']) >= cv_mean):.3f}")
+    print(f"Saved {TEST_CI}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--trial", action="store_true", help="baseline + tiny search, test set untouched")
     mode.add_argument("--search", action="store_true", help="full grid search, test set untouched")
     mode.add_argument("--final", action="store_true", help="the one evaluation of the chosen model on the test set")
+    mode.add_argument("--ci", action="store_true", help="bootstrap intervals from the saved test predictions")
     parser.add_argument("--force", action="store_true", help="allow --final to run again")
     args = parser.parse_args()
     if args.trial:
         run_trial()
     elif args.search:
         run_search()
+    elif args.ci:
+        run_ci()
     else:
         run_final(force=args.force)
 

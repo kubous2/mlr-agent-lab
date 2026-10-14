@@ -52,6 +52,7 @@ HTML(html_table(test_table(d)))
 ```
 
 - Test balanced accuracy **`{python} f3(d["test_ba"])`**, `{python} f"{abs(d['gap']):.3f}"` below the CV estimate (`{python} f3(d["cv_mean"])` ± `{python} f3(d["cv_std"])`)
+- 95 % CI of the test balanced accuracy: `{python} f3(d["ci_ba"][0])`–`{python} f3(d["ci_ba"][1])` (bootstrap, `{python} f"{d['n_boot']:,}"` resamples)
 - Baseline on the test set: `{python} f3(d["base_test"])`
 - `{python} len(d["noise_in_test"])` of the `{python} d["n_noise"]` suspicious rows from the data report are in the test set; `{python} d["noise_wrong"]` predicted wrong
 

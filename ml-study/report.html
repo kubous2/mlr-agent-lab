@@ -109,6 +109,7 @@ Models within 0.01 of the best (k-NN, SVM (RBF), random forest) count as tied an
       <th>Model</th>
       <th>CV balanced accuracy</th>
       <th>Test balanced accuracy</th>
+      <th>95 % CI</th>
       <th>Test accuracy</th>
       <th>Test macro F1</th>
       <th>Test − CV</th>
@@ -119,6 +120,7 @@ Models within 0.01 of the best (k-NN, SVM (RBF), random forest) count as tied an
       <td>baseline</td>
       <td>0.333 ± 0.000</td>
       <td>0.333</td>
+      <td>–</td>
       <td>0.424</td>
       <td>0.199</td>
       <td>+0.000</td>
@@ -127,6 +129,7 @@ Models within 0.01 of the best (k-NN, SVM (RBF), random forest) count as tied an
       <td>k-NN</td>
       <td>0.946 ± 0.030</td>
       <td>0.884</td>
+      <td>0.813–0.948</td>
       <td>0.899</td>
       <td>0.887</td>
       <td>-0.061</td>
@@ -136,6 +139,9 @@ Models within 0.01 of the best (k-NN, SVM (RBF), random forest) count as tied an
 <p>On the 99 test rows k-NN reaches a balanced accuracy of <b>0.884</b>
 (accuracy 0.899, macro F1 0.887), 0.061 below its CV estimate of
 0.946 ± 0.030. The baseline scores 0.333.</p>
+<p>The 95 % confidence interval of the test balanced accuracy is <b>0.813–0.948</b>
+(percentile bootstrap of the saved test predictions, 10,000 resamples drawn within each class, seed 42).
+The CV estimate lies inside it.</p>
 
 <h3>Confusion matrix (k-NN, test set)</h3>
 <table class="tbl confusion"><thead><tr><th>true class (rows)</th><th>predicted cherry</th><th>predicted maple</th><th>predicted walnut</th><th>recall</th></tr></thead><tbody><tr><th>cherry (33)</th><td class="hit">30</td><td>1</td><td>2</td><td>0.909</td></tr><tr><th>maple (42)</th><td>1</td><td class="hit">40</td><td>1</td><td>0.952</td></tr><tr><th>walnut (24)</th><td>4</td><td>1</td><td class="hit">19</td><td>0.792</td></tr></tbody></table>

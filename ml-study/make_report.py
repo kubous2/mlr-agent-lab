@@ -69,6 +69,9 @@ Models within {d["margin"]} of the best ({", ".join(d["tied"])}) count as tied a
 <p>On the {d["n_test"]} test rows {d["chosen"]} reaches a balanced accuracy of <b>{f3(d["test_ba"])}</b>
 (accuracy {f3(d["test_acc"])}, macro F1 {f3(d["test_f1"])}), {abs(d["gap"]):.3f} below its CV estimate of
 {f3(d["cv_mean"])} ± {f3(d["cv_std"])}. The baseline scores {f3(d["base_test"])}.</p>
+<p>The 95 % confidence interval of the test balanced accuracy is <b>{f3(d["ci_ba"][0])}–{f3(d["ci_ba"][1])}</b>
+(percentile bootstrap of the saved test predictions, {d["n_boot"]:,} resamples drawn within each class, seed {d["seed"]}).
+The CV estimate lies {"inside" if d["ci_ba"][0] <= d["cv_mean"] <= d["ci_ba"][1] else "outside"} it.</p>
 
 <h3>Confusion matrix ({escape(d["chosen"])}, test set)</h3>
 {confusion_html(d)}
