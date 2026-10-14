@@ -1,0 +1,9 @@
+# PyCharm project settings (local, machine-specific)
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
