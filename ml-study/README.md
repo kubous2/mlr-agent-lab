@@ -33,17 +33,21 @@ Things to keep in mind:
   so the two measurements should separate the classes well.
 - Precision is mixed: most rows have 1–2 decimals, but roughly file lines 102–303
   have 5–7 significant digits, which suggests the data was assembled from more than one source.
-- 26 rows are exact duplicates of another row.
+- 26 rows are exact duplicates of another row (46 rows in 20 groups, each group a single class).
+  The first three rows (lines 2–4) appear again at lines 26–28 and 65–67.
+- 3 pairs of rows have identical measurements but different classes (cherry vs. walnut):
+  lines 386/511, 497/504 and 416/456.
 - A few cherry rows lie far from the rest of their class, e.g. `16.9,21.6,cherry`
   (width 21.6 vs. a cherry mean of 5.3), so they may be outliers or mislabelled.
 
 ## Environment
 
-This folder is a [uv](https://docs.astral.sh/uv/) project (Python 3.12, pinned in `.python-version`).
+This folder uses the repository's [uv](https://docs.astral.sh/uv/) environment
+(`.venv` at the repository root, Python 3.12, with pandas, scikit-learn and matplotlib).
+Run commands from the repository root:
 
 ```sh
-cd ml-study
-uv sync               # create .venv from uv.lock
-uv run python ...     # run code in the environment
-uv add <package>      # add a dependency
+uv sync                                  # create .venv from uv.lock
+uv run python ml-study/explore_leaves.py # print the data report, write figures/scatter.png
+uv add <package>                         # add a dependency
 ```
