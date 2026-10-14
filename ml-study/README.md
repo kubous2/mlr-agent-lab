@@ -51,3 +51,12 @@ uv sync                                  # create .venv from uv.lock
 uv run python ml-study/explore_leaves.py # print the data report, write figures/scatter.png
 uv add <package>                         # add a dependency
 ```
+
+Models, report and slides (see `SPEC.md`, `PLAN.md`, `RESULTS.md`):
+
+```sh
+uv run python ml-study/train_models.py --search  # CV search -> results/cv_*.csv
+uv run python ml-study/train_models.py --final   # one-time test evaluation -> results/test_*.csv
+uv run python ml-study/make_report.py            # -> report.html
+QUARTO_PYTHON=.venv/Scripts/python.exe quarto render ml-study/slides.qmd   # -> slides.html
+```
